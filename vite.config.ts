@@ -24,6 +24,7 @@ export default defineConfig(() => {
           }
           const distDir = path.resolve(__dirname, 'dist');
           const docsDir = path.resolve(__dirname, 'docs');
+          const rootAssetsDir = path.resolve(__dirname, 'assets');
           const rootNoJekyll = path.resolve(__dirname, '.nojekyll');
           const srcAssets = path.resolve(__dirname, 'src/assets');
           const distAssets = path.resolve(distDir, 'src/assets');
@@ -36,6 +37,31 @@ export default defineConfig(() => {
             fs.rmSync(docsDir, {recursive: true, force: true});
             fs.cpSync(distDir, docsDir, {recursive: true, force: true});
             fs.writeFileSync(path.join(docsDir, '.nojekyll'), '');
+
+            const distIndexHtml = fs.readFileSync(path.join(distDir, 'index.html'), 'utf8');
+            const jsMatches = [...distIndexHtml.matchAll(/src="\.\/assets\/([^"]+\.js)"/g)].map((m) => m[1]);
+            const cssMatches = [...distIndexHtml.matchAll(/href="\.\/assets\/([^"]+\.css)"/g)].map((m) => m[1]);
+
+            const builtAssetsDir = path.join(distDir, 'assets');
+            if (fs.existsSync(builtAssetsDir)) {
+              fs.rmSync(rootAssetsDir, {recursive: true, force: true});
+              fs.cpSync(builtAssetsDir, rootAssetsDir, {recursive: true, force: true});
+
+              const bootLines = [
+                '(function () {',
+                '  var base = (document.currentScript && document.currentScript.src) || window.location.href;',
+                ...cssMatches.map(
+                  (css) =>
+                    `  var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = new URL('./${css}', base).href; document.head.appendChild(l);`
+                ),
+                ...jsMatches.map(
+                  (js) =>
+                    `  var m = document.createElement('script'); m.type = 'module'; m.crossOrigin = 'anonymous'; m.src = new URL('./${js}', base).href; document.body.appendChild(m);`
+                ),
+                '})();',
+              ];
+              fs.writeFileSync(path.join(rootAssetsDir, 'boot.js'), bootLines.join('\n') + '\n');
+            }
           }
         },
       },

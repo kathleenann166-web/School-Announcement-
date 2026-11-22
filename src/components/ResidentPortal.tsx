@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
+import campusBannerImg from '../assets/images/campus_courtyard_banner_1795332226928.jpg';
 import { formatShortDate } from './AnnouncementDetailModal';
 import type {
   Announcement,
@@ -351,7 +352,7 @@ export function ResidentPortal({
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100 lg:col-span-5">
             {!imgError ? (
               <img
-                src="./src/assets/images/campus_courtyard_banner_1795332226928.jpg"
+                src={campusBannerImg}
                 alt="OMSU Mamburao Campus Courtyard and Academic Hall"
                 referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}

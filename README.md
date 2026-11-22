@@ -33,9 +33,9 @@ git push -u origin deploy
 
 ### 2. Publish with GitHub Pages ("Deploy from a branch")
 
-This repository automatically builds a static, subpath-ready production bundle into `docs/` (with `.nojekyll` and relative `./assets/` paths) whenever `npm run build` runs, so **GitHub Pages works with no blank white screen**:
+This repository uses relative `./assets/` paths, includes `.nojekyll`, and generates both root `assets/` (with `assets/boot.js`) and `docs/` whenever `npm run build` runs, so **GitHub Pages works cleanly with no blank white screen**:
 
-1. Build & push your branch (including `docs/`):
+1. Build & push your files to your GitHub `main` branch (including `index.html`, `.nojekyll`, `assets/`, and `docs/`):
    ```bash
    npm run build
    git add .
@@ -43,7 +43,7 @@ This repository automatically builds a static, subpath-ready production bundle i
    git push -u origin main
    ```
 2. In your GitHub repository, go to **Settings → Pages → Build and deployment**.
-3. Under **Source**, choose **Deploy from a branch**, select your branch (`main`), and choose either **`/docs`** (recommended) or **`/ (root)`** (which automatically loads `./docs/`), then click **Save**.
+3. Under **Source**, choose **Deploy from a branch**, select **Branch: `main`**, select **Folder: `/ (root)`** (or `/docs`), and click **Save**.
    - *(Alternatively, choose **Source: GitHub Actions** — the included `.github/workflows/deploy-pages.yml` workflow builds and deploys `./dist` automatically on push.)*
 
 ### 3. Full-Stack Node.js Hosting (SQLite + Real SMTP Email + WebSockets)

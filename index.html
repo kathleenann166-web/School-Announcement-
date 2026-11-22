@@ -25,7 +25,6 @@
     <script type="module" src="/src/main.tsx"></script>
     <script data-root-static-fallback>
       (function () {
-        if (window.location.pathname.indexOf('/docs') !== -1) return;
         var isViteDev = !!document.querySelector('script[src*="@vite/client"]');
         var hasRawTsxEntry = !!document.querySelector('script[src="/src/main.tsx"]');
         if (!isViteDev && hasRawTsxEntry) {
@@ -35,7 +34,10 @@
           } else if (!p.endsWith('/')) {
             p = p + '/';
           }
-          window.location.replace(p + 'docs/' + window.location.search + window.location.hash);
+          var s = document.createElement('script');
+          s.src = p + 'assets/boot.js';
+          s.defer = true;
+          document.head.appendChild(s);
         }
       })();
     </script>
