@@ -1,0 +1,6 @@
+{
+  "name": "Crestview Bulletin",
+  "description": "Centralized school and campus announcement hub with Admin and Resident accounts, real-time updates, and automated email notifications.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
