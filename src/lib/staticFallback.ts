@@ -25,10 +25,15 @@ export function enableStaticMode() {
   staticModeFlag = true;
 }
 
-const channel =
-  typeof BroadcastChannel !== 'undefined'
-    ? new BroadcastChannel('omsu-mamburao-realtime')
-    : null;
+const channel = (() => {
+  try {
+    return typeof BroadcastChannel !== 'undefined'
+      ? new BroadcastChannel('omsu-mamburao-realtime')
+      : null;
+  } catch {
+    return null;
+  }
+})();
 
 function emitRealtime(event: RealtimeEvent) {
   window.dispatchEvent(new CustomEvent('omsu:realtime', { detail: event }));
@@ -41,11 +46,22 @@ interface InternalUser extends UserProfile {
 }
 
 async function hashWithSalt(password: string, salt: string): Promise<string> {
-  const enc = new TextEncoder().encode(`${salt}:${password}`);
-  const buf = await window.crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  const input = `${salt}:${password}`;
+  if (typeof window !== 'undefined' && window.crypto?.subtle) {
+    const enc = new TextEncoder().encode(input);
+    const buf = await window.crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+  let h1 = 0x811c9dc5;
+  let h2 = 0xdeadbeef;
+  for (let i = 0; i < input.length; i++) {
+    const c = input.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193);
+    h2 = Math.imul(h2 ^ c, 0x85ebca6b);
+  }
+  return `${(h1 >>> 0).toString(16).padStart(8, '0')}${(h2 >>> 0).toString(16).padStart(8, '0')}`;
 }
 
 function randomHex(bytesLen = 12): string {

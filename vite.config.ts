@@ -15,18 +15,23 @@ export default defineConfig(() => {
       {
         name: 'copy-unbundled-src-assets',
         apply: 'build',
+        transformIndexHtml(html: string): string {
+          return html.replace(/<script data-root-static-fallback>[\s\S]*?<\/script>\s*/g, '');
+        },
         closeBundle(error?: Error): void {
           if (error) {
             return;
           }
           const distDir = path.resolve(__dirname, 'dist');
           const docsDir = path.resolve(__dirname, 'docs');
+          const rootNoJekyll = path.resolve(__dirname, '.nojekyll');
           const srcAssets = path.resolve(__dirname, 'src/assets');
           const distAssets = path.resolve(distDir, 'src/assets');
           if (fs.existsSync(distDir) && fs.existsSync(srcAssets)) {
             fs.cpSync(srcAssets, distAssets, {recursive: true, force: true});
           }
           if (fs.existsSync(distDir)) {
+            fs.writeFileSync(rootNoJekyll, '');
             fs.writeFileSync(path.join(distDir, '.nojekyll'), '');
             fs.rmSync(docsDir, {recursive: true, force: true});
             fs.cpSync(distDir, docsDir, {recursive: true, force: true});

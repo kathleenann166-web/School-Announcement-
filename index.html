@@ -13,9 +13,32 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="margin:0;background:#0F254A;color:#F8FAFC;font-family:'Plus Jakarta Sans',system-ui,sans-serif;">
+    <div id="root">
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#0F254A;">
+        <div style="text-align:center;max-width:360px;">
+          <div style="font-size:16px;font-weight:700;letter-spacing:-0.01em;color:#FFFFFF;">OMSU Mamburao Campus Portal</div>
+          <div style="margin-top:6px;font-size:12px;color:#BFDBFE;">Loading official portal...</div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script data-root-static-fallback>
+      (function () {
+        if (window.location.pathname.indexOf('/docs') !== -1) return;
+        var isViteDev = !!document.querySelector('script[src*="@vite/client"]');
+        var hasRawTsxEntry = !!document.querySelector('script[src="/src/main.tsx"]');
+        if (!isViteDev && hasRawTsxEntry) {
+          var p = window.location.pathname || '/';
+          if (p.endsWith('/index.html')) {
+            p = p.slice(0, -'index.html'.length);
+          } else if (!p.endsWith('/')) {
+            p = p + '/';
+          }
+          window.location.replace(p + 'docs/' + window.location.search + window.location.hash);
+        }
+      })();
+    </script>
   </body>
 </html>
 

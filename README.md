@@ -43,7 +43,7 @@ This repository automatically builds a static, subpath-ready production bundle i
    git push -u origin main
    ```
 2. In your GitHub repository, go to **Settings → Pages → Build and deployment**.
-3. Under **Source**, choose **Deploy from a branch**, select your branch (`main`), select folder **`/docs`** (not `/ (root)`), and click **Save**.
+3. Under **Source**, choose **Deploy from a branch**, select your branch (`main`), and choose either **`/docs`** (recommended) or **`/ (root)`** (which automatically loads `./docs/`), then click **Save**.
    - *(Alternatively, choose **Source: GitHub Actions** — the included `.github/workflows/deploy-pages.yml` workflow builds and deploys `./dist` automatically on push.)*
 
 ### 3. Full-Stack Node.js Hosting (SQLite + Real SMTP Email + WebSockets)

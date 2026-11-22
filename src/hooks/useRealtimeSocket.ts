@@ -38,16 +38,21 @@ export function useRealtimeSocket({ token, onEvent }: UseRealtimeSocketOptions) 
     };
     window.addEventListener('omsu:realtime', handleLocalEvent);
 
-    const bc =
-      typeof BroadcastChannel !== 'undefined'
-        ? new BroadcastChannel('omsu-mamburao-realtime')
-        : null;
-    if (bc) {
-      bc.onmessage = (msg) => {
-        if (msg.data) {
-          onEventRef.current(msg.data as RealtimeEvent);
-        }
-      };
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc =
+        typeof BroadcastChannel !== 'undefined'
+          ? new BroadcastChannel('omsu-mamburao-realtime')
+          : null;
+      if (bc) {
+        bc.onmessage = (msg) => {
+          if (msg.data) {
+            onEventRef.current(msg.data as RealtimeEvent);
+          }
+        };
+      }
+    } catch {
+      bc = null;
     }
 
     const staticHost =
