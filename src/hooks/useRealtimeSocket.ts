@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { isStaticModeActive } from '../lib/staticFallback';
 import type { RealtimeEvent } from '../types';
 
 interface UseRealtimeSocketOptions {
@@ -29,8 +30,49 @@ export function useRealtimeSocket({ token, onEvent }: UseRealtimeSocketOptions) 
     let reconnectTimer: number | undefined;
     let retryDelay = 1000;
 
+    const handleLocalEvent = (evt: Event) => {
+      const customEvt = evt as CustomEvent<RealtimeEvent>;
+      if (customEvt.detail) {
+        onEventRef.current(customEvt.detail);
+      }
+    };
+    window.addEventListener('omsu:realtime', handleLocalEvent);
+
+    const bc =
+      typeof BroadcastChannel !== 'undefined'
+        ? new BroadcastChannel('omsu-mamburao-realtime')
+        : null;
+    if (bc) {
+      bc.onmessage = (msg) => {
+        if (msg.data) {
+          onEventRef.current(msg.data as RealtimeEvent);
+        }
+      };
+    }
+
+    const staticHost =
+      isStaticModeActive() ||
+      window.location.hostname.endsWith('.github.io') ||
+      window.location.protocol === 'file:';
+
+    if (staticHost) {
+      setConnected(true);
+      setOnlineCount(1);
+      return () => {
+        active = false;
+        window.removeEventListener('omsu:realtime', handleLocalEvent);
+        bc?.close();
+      };
+    }
+
     function connect() {
       if (!active) return;
+      if (isStaticModeActive()) {
+        setConnected(true);
+        setOnlineCount(1);
+        return;
+      }
+
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
       wsRef.current = socket;
@@ -58,6 +100,10 @@ export function useRealtimeSocket({ token, onEvent }: UseRealtimeSocketOptions) 
 
       socket.onclose = () => {
         if (!active) return;
+        if (isStaticModeActive()) {
+          setConnected(true);
+          return;
+        }
         setConnected(false);
         reconnectTimer = window.setTimeout(() => {
           retryDelay = Math.min(retryDelay * 1.5, 10000);
@@ -74,6 +120,8 @@ export function useRealtimeSocket({ token, onEvent }: UseRealtimeSocketOptions) 
 
     return () => {
       active = false;
+      window.removeEventListener('omsu:realtime', handleLocalEvent);
+      bc?.close();
       if (reconnectTimer) {
         window.clearTimeout(reconnectTimer);
       }

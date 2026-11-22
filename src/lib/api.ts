@@ -13,6 +13,7 @@ import type {
   UserRole,
   UserStatus,
 } from '../types';
+import { enableStaticMode, isStaticModeActive, staticApi } from './staticFallback';
 
 export class ApiError extends Error {
   status: number;
@@ -22,11 +23,25 @@ export class ApiError extends Error {
   }
 }
 
+async function invokeStatic<T>(staticFn: () => Promise<T>): Promise<T> {
+  try {
+    return await staticFn();
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    throw new ApiError(e?.message || 'Request failed', e?.status || 400);
+  }
+}
+
 async function request<T>(
   url: string,
   options: RequestInit = {},
-  token?: string | null
+  token?: string | null,
+  staticFn?: () => Promise<T>
 ): Promise<T> {
+  if (isStaticModeActive() && staticFn) {
+    return invokeStatic(staticFn);
+  }
+
   const headers = new Headers(options.headers || {});
   if (!headers.has('Content-Type') && options.body) {
     headers.set('Content-Type', 'application/json');
@@ -35,7 +50,23 @@ async function request<T>(
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const res = await fetch(url, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(url, { ...options, headers });
+  } catch (err) {
+    if (staticFn) {
+      enableStaticMode();
+      return invokeStatic(staticFn);
+    }
+    throw err;
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json') && staticFn) {
+    enableStaticMode();
+    return invokeStatic(staticFn);
+  }
+
   const data = (await res.json().catch(() => ({}))) as { error?: string } & T;
   if (!res.ok) {
     throw new ApiError(data.error || `Request failed (${res.status})`, res.status);
@@ -44,7 +75,10 @@ async function request<T>(
 }
 
 export const api = {
-  getBootstrapStatus: () => request<BootstrapStatus>('/api/auth/bootstrap-status'),
+  getBootstrapStatus: () =>
+    request<BootstrapStatus>('/api/auth/bootstrap-status', {}, null, () =>
+      staticApi.getBootstrapStatus()
+    ),
 
   claimAdmin: (payload: {
     name: string;
@@ -53,10 +87,15 @@ export const api = {
     unit: string;
     adminPasscode?: string;
   }) =>
-    request<{ token: string; user: UserProfile }>('/api/auth/claim-admin', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
+    request<{ token: string; user: UserProfile }>(
+      '/api/auth/claim-admin',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      null,
+      () => staticApi.claimAdmin(payload)
+    ),
 
   bootstrapSampleAccounts: (payload: {
     adminName: string;
@@ -78,10 +117,15 @@ export const api = {
       residentUser: UserProfile;
       teacherToken: string;
       teacherUser: UserProfile;
-    }>('/api/auth/bootstrap-samples', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
+    }>(
+      '/api/auth/bootstrap-samples',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      null,
+      () => staticApi.bootstrapSampleAccounts(payload)
+    ),
 
   registerResident: (payload: {
     studentId: string;
@@ -91,16 +135,26 @@ export const api = {
     unit: string;
     emailNotifications: boolean;
   }) =>
-    request<{ token: string; user: UserProfile }>('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
+    request<{ token: string; user: UserProfile }>(
+      '/api/auth/register',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      null,
+      () => staticApi.registerResident(payload)
+    ),
 
   login: (payload: { email: string; password: string }) =>
-    request<{ token: string; user: UserProfile }>('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
+    request<{ token: string; user: UserProfile }>(
+      '/api/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      null,
+      () => staticApi.login(payload)
+    ),
 
   updateMyPreferences: (
     payload: { name?: string; unit?: string; emailNotifications?: boolean },
@@ -112,14 +166,16 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(payload),
       },
-      token
+      token,
+      () => staticApi.updateMyPreferences(payload, token)
     ),
 
   listAnnouncements: (token?: string | null, includeArchived = false) =>
     request<{ announcements: Announcement[] }>(
       `/api/announcements${includeArchived ? '?includeArchived=true' : ''}`,
       {},
-      token
+      token,
+      () => staticApi.listAnnouncements(token, includeArchived)
     ),
 
   createAnnouncement: (
@@ -141,7 +197,8 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(payload),
       },
-      token
+      token,
+      () => staticApi.createAnnouncement(payload, token)
     ),
 
   updateAnnouncement: (
@@ -165,35 +222,49 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(payload),
       },
-      token
+      token,
+      () => staticApi.updateAnnouncement(id, payload, token)
     ),
 
   deleteAnnouncement: (id: string, token: string) =>
     request<{ deleted: boolean; id: string }>(
       `/api/announcements/${encodeURIComponent(id)}`,
       { method: 'DELETE' },
-      token
+      token,
+      () => staticApi.deleteAnnouncement(id, token)
     ),
 
   sendEmailNotification: (id: string, token: string) =>
     request<{ dispatch: EmailDispatchLog }>(
       `/api/announcements/${encodeURIComponent(id)}/notify`,
       { method: 'POST' },
-      token
+      token,
+      () => staticApi.sendEmailNotification(id, token)
     ),
 
   markAnnouncementRead: (id: string, token: string) =>
     request<{ id: string; readCount: number; isReadByMe: boolean }>(
       `/api/announcements/${encodeURIComponent(id)}/read`,
       { method: 'POST' },
-      token
+      token,
+      () => staticApi.markAnnouncementRead(id, token)
     ),
 
   getAdminOverview: (token: string) =>
-    request<{ stats: AdminOverviewStats }>('/api/admin/overview', {}, token),
+    request<{ stats: AdminOverviewStats }>(
+      '/api/admin/overview',
+      {},
+      token,
+      () => staticApi.getAdminOverview(token)
+    ),
 
   listResidents: (token: string) =>
-    request<{ users: UserProfile[] }>('/api/admin/residents', {}, token),
+    request<{ users: UserProfile[] }>(
+      '/api/admin/residents',
+      {},
+      token,
+      () => staticApi.listResidents(token)
+    ),
 
   createResidentAccount: (
     payload: {
@@ -213,7 +284,8 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(payload),
       },
-      token
+      token,
+      () => staticApi.createResidentAccount(payload, token)
     ),
 
   updateResidentAccount: (
@@ -232,18 +304,25 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(payload),
       },
-      token
+      token,
+      () => staticApi.updateResidentAccount(id, payload, token)
     ),
 
   deleteResidentAccount: (id: string, token: string) =>
     request<{ deleted: boolean; id: string }>(
       `/api/admin/residents/${encodeURIComponent(id)}`,
       { method: 'DELETE' },
-      token
+      token,
+      () => staticApi.deleteResidentAccount(id, token)
     ),
 
   listRoster: (token: string) =>
-    request<{ roster: EnrolledStudentRecord[] }>('/api/admin/roster', {}, token),
+    request<{ roster: EnrolledStudentRecord[] }>(
+      '/api/admin/roster',
+      {},
+      token,
+      () => staticApi.listRoster(token)
+    ),
 
   addRosterEntry: (
     payload: {
@@ -263,7 +342,8 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(payload),
       },
-      token
+      token,
+      () => staticApi.addRosterEntry(payload, token)
     ),
 
   bulkImportRoster: (
@@ -276,7 +356,8 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(payload),
       },
-      token
+      token,
+      () => staticApi.bulkImportRoster(payload, token)
     ),
 
   updateRosterEntry: (
@@ -295,20 +376,30 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(payload),
       },
-      token
+      token,
+      () => staticApi.updateRosterEntry(id, payload, token)
     ),
 
   deleteRosterEntry: (id: string, token: string) =>
     request<{ deleted: boolean; id: string }>(
       `/api/admin/roster/${encodeURIComponent(id)}`,
       { method: 'DELETE' },
-      token
+      token,
+      () => staticApi.deleteRosterEntry(id, token)
     ),
 
   listDispatches: (token: string) =>
-    request<{ dispatches: EmailDispatchLog[] }>('/api/admin/dispatches', {}, token),
+    request<{ dispatches: EmailDispatchLog[] }>(
+      '/api/admin/dispatches',
+      {},
+      token,
+      () => staticApi.listDispatches(token)
+    ),
 
-  getPortalSettings: () => request<{ settings: PortalSettings }>('/api/portal-settings'),
+  getPortalSettings: () =>
+    request<{ settings: PortalSettings }>('/api/portal-settings', {}, null, () =>
+      staticApi.getPortalSettings()
+    ),
 
   updatePortalSettings: (
     payload: Partial<Omit<PortalSettings, 'updatedAt'>>,
@@ -320,6 +411,7 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(payload),
       },
-      token
+      token,
+      () => staticApi.updatePortalSettings(payload, token)
     ),
 };

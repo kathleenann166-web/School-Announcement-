@@ -31,9 +31,24 @@ git checkout -b deploy
 git push -u origin deploy
 ```
 
-> **Note on Hosting:** Because this app includes an Express backend, SQLite database (`better-sqlite3`), WebSockets (`ws`), and `nodemailer`, deploy your GitHub branch to a **Node.js hosting platform** (such as **Render**, **Railway**, **Fly.io**, or **Google Cloud Run**)—static-only GitHub Pages cannot execute the Node/SQLite backend.
+### 2. Publish with GitHub Pages ("Deploy from a branch")
 
-### 2. Hosting Build & Start Commands
+This repository automatically builds a static, subpath-ready production bundle into `docs/` (with `.nojekyll` and relative `./assets/` paths) whenever `npm run build` runs, so **GitHub Pages works with no blank white screen**:
+
+1. Build & push your branch (including `docs/`):
+   ```bash
+   npm run build
+   git add .
+   git commit -m "Build OMSU Mamburao portal for GitHub Pages"
+   git push -u origin main
+   ```
+2. In your GitHub repository, go to **Settings → Pages → Build and deployment**.
+3. Under **Source**, choose **Deploy from a branch**, select your branch (`main`), select folder **`/docs`** (not `/ (root)`), and click **Save**.
+   - *(Alternatively, choose **Source: GitHub Actions** — the included `.github/workflows/deploy-pages.yml` workflow builds and deploys `./dist` automatically on push.)*
+
+### 3. Full-Stack Node.js Hosting (SQLite + Real SMTP Email + WebSockets)
+
+For persistent multi-device SQLite storage (`better-sqlite3`), live WebSockets (`/ws`), and real `nodemailer` SMTP email delivery, deploy the same branch to **Render**, **Railway**, **Fly.io**, or **Google Cloud Run**:
 
 - **Runtime**: Node.js `>=22.18.0` (pinned via `.node-version` and `package.json` `engines`)
 - **Install Command**: `npm install`
