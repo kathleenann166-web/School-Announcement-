@@ -1711,7 +1711,10 @@ async function startServer() {
   });
 
   // Vite middleware in development, static dist/ in production
-  const isProduction = process.env.NODE_ENV === 'production';
+  const distIndexFile = path.resolve(process.cwd(), 'dist', 'index.html');
+  const isProduction =
+    process.env.NODE_ENV === 'production' ||
+    (process.env.npm_lifecycle_event === 'start' && fs.existsSync(distIndexFile));
   if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({

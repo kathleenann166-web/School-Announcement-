@@ -105,7 +105,7 @@ export function PortalAuthView({
     return attachedPassword;
   });
 
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState<boolean>(canQuickFill);
 
   // Enrolled OMSU student/teacher registration inputs
   const [regStudentId, setRegStudentId] = useState('');
